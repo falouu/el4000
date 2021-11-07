@@ -8,6 +8,7 @@ import os, sys
 from argparse import ArgumentParser
 import datetime
 import logging
+from typing import Any, Tuple
 
 from defs import info, data_hdr, data, setup, SETUP_MAGIC, STARTCODE
 import printers
@@ -127,6 +128,95 @@ def process_file(filename, printer, dt, data_only):
                 # Clear buffer since it is processed
                 buf = b''
 
+def run_dir_mode(dir: str, printer):
+    _logger.info("Processing dir: %s", dir)
+
+    memory_printer = printers.MemoryPrinter()
+
+    filenames = [] # type: list[str]
+    (_, _, filenames) = next(os.walk(dir), (None, None, []))
+    if len(filenames) == 0:
+        raise Exception("Directory '{}' is empty or invalid".format(dir))
+
+
+    last_datetime = [None]
+
+    # bin_files = []
+    # for filename in filenames:
+    #     if filename.lower().endswith(".bin"):
+    #         bin_files.append({
+    #             filename: filename,
+    #             key: 
+    #         })
+    #     else:
+    #         _logger.info("Skipping file: %s", filename) 
+
+
+    # def filename_to_hex(filename):
+        
+    bin_filenames = []
+    for filename in filenames:
+        if filename.lower().endswith(".bin"):
+            bin_filenames.append(filename)
+        else:
+            _logger.info("Skipping file: %s", filename)
+
+    bin_filenames.sort()
+
+    # first file of files sorted asc by filename treated as HEX number, should be an info file
+    # it should initialise last_datetime
+    info_filename = bin_filenames[0]
+    # apparently bin files, sorted asc are in reversed chrono order. We need to reverse the list
+    # and the earliest data file has no header, so last_datetime needs to be initialised before, by reading info file
+    data_filenames = reversed(bin_filenames[1:])
+
+    def process_bin_file(filename):
+        _logger.info("Processing file: %s", filename)
+        abs_path = os.path.join(dir, filename)
+        process_file(abs_path, memory_printer, last_datetime, False)
+
+    process_bin_file(info_filename)
+    for filename in data_filenames:
+        process_bin_file(filename)
+    pass
+
+    def verify_sorted(entries):
+        last_datetime = "1970-01-01 00:00"
+        for entry in entries:
+            date = entry["date"]
+            if date <= last_datetime:
+                raise Exception("Entries are not sorted by date!")
+            last_datetime = date
+        _logger.info("Entries are correctly sorted by date")
+
+    verify_sorted(memory_printer.data)
+
+    output_info_filepath = os.path.join(dir, "info.yml")
+    _logger.info("Writing info to: " + output_info_filepath)
+    with open(output_info_filepath, 'x') as output_info_file:
+        for entry in memory_printer.info:
+            output_info_file.write("{}: {}\n".format(entry["key"], entry["val"]))
+    _logger.info("Info written successfully")
+
+    output_data_raw_filepath = os.path.join(dir, "all-data.csv")
+    _logger.info("Writing data to: " + output_data_raw_filepath)
+    with open(output_data_raw_filepath, 'x') as output_data_raw_file:
+        header = ",".join(["date", "voltage", "current", "power_factor", "apparent_power", "effective_power"])
+        output_data_raw_file.write(header + "\n")
+        for entry in memory_printer.data:
+            line = ",".join([
+                entry["date"], 
+                str(entry["voltage"]), 
+                str(entry["current"]), 
+                str(entry["power_factor"]), 
+                str(entry["apparent_power"]), 
+                str(entry["effective_power"])
+            ])
+            output_data_raw_file.write(line + "\n")
+    _logger.info("Data written successfully")
+
+
+
 
 verbosities = [
     logging.CRITICAL,
@@ -165,6 +255,9 @@ parser.add_argument('files', metavar='binfile', nargs='+',
                     is given, then this is the output file (and input for \
                     defaults). The order of files are significant when a \
                     timestamp is involved')
+parser.add_argument('--dir', action='store_true', 
+                    help="enable dir mode. Pass one directory - all data will \
+                    be saved automatically in chronological order in given directory: data.csv and info")
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -182,6 +275,13 @@ if __name__ == '__main__':
 
     # Unknown date and time, initialize with something low.
     dt = [datetime.datetime(1970, 1, 1)]
+
+    if args.dir:
+        if files_count != 1:
+            _logger.error('Only one file (directory) can be specified for dir mode')
+            sys.exit(1)
+        run_dir_mode(args.files[0], myprinter)
+        sys.exit(0)
 
     for filename in args.files:
         try:

@@ -72,6 +72,45 @@ class ApparentPowerPrinter(BasePrinter):
         apparent_power = t.voltage * t.current
         print('{1}{0}{2:.1f}'.format(self.separator, date, apparent_power))
 
+class MemoryPrinter(BasePrinter):
+
+    def __init__(self):
+        self.info = []
+        self.data = []
+        pass
+    
+    def print_info(self, t):
+        for n, v in zip(t._fields, t):
+            # Print literals in displayable characters
+            if isinstance(v, bytes):
+                v = repr(v)
+            self.info += [{
+                "key": n, 
+                "val": info.unitify(n, v)
+            }]
+
+
+    def print_data_header(self, t):
+        pass
+
+    def print_data(self, t, date):
+        # data_file_index = len(self.data) - 1
+        # if data_file_index < 0:
+        #     raise Exception("data_file_index < 0. print_data_header not called?")
+
+        apparent_power = t.voltage * t.current
+        effective_power = t.voltage * t.current * t.power_factor
+
+        self.data.append({
+            "date": date,
+            "voltage": t.voltage,
+            "current": t.current,
+            "power_factor": t.power_factor,
+            "apparent_power": apparent_power,
+            "effective_power": effective_power
+        })
+
+
 def round_up(n, multiple):
     return int(math.ceil(1.0 * n / multiple) * multiple)
 

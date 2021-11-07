@@ -43,12 +43,12 @@ data_hdr = Format('DataHeader')
 STARTCODE = b'\xe0\xc5\xea'
 data_hdr.add_literal(STARTCODE, 'startcode')
 # "Date of recording" MM/DD/YY
-data_hdr.add_number(1, 'record_month',          values=range(1, 12))
-data_hdr.add_number(1, 'record_day',            values=range(1, 31))
+data_hdr.add_number(1, 'record_month',          values=range(1, 13))
+data_hdr.add_number(1, 'record_day',            values=range(1, 32))
 data_hdr.add_number(1, 'record_year',           values=range(0, 99))
 # "Time of recording" HH:MM
-data_hdr.add_number(1, 'record_hour',           values=range(0, 23))
-data_hdr.add_number(1, 'record_minute',         values=range(0, 59))
+data_hdr.add_number(1, 'record_hour',           values=range(0, 24))
+data_hdr.add_number(1, 'record_minute',         values=range(0, 60))
 data_hdr.build(8)
 
 
