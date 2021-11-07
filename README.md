@@ -1,4 +1,30 @@
-# Energy Logger 4000 utility
+# My enchancements
+
+Dir Mode:
+```
+python3 el4000 --dir <directory with el4000 sdcard dump>
+```
+
+It reads all bin files from the directory, process data in chronological order and create 2 files:
+* `all-data.csv` - all data dumped, sorted chronologically
+* `info.yml` - data from info file
+
+## TODO:
+* further process `all-data.csv` file. Ideas:
+  * create a filtered file `on-sessions-data.csv` with entries only with > 10W usage
+    * create a sessions report file, where each entry is:
+      * start session date
+      * end session date
+      * session duration
+      * average W
+      * p10 W
+      * p90 W
+  * create `all-data-hourly.csv` 
+  * basic stats file:
+    * max W
+
+
+# [Original README] Energy Logger 4000 utility
 
 This project provides a utility which can be used to read info and binary logs
 from the Voltcraft Energy Logger 4000 as [sold by Conrad][conrad]. A setup file
