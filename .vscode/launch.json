@@ -11,6 +11,14 @@
             "request": "launch",
             "program": "el4000.py",
             "console": "integratedTerminal",
+        },
+        {
+            "name": "report.py",
+            "type": "python",
+            "args": ["/tmp/el4000-data"],
+            "request": "launch",
+            "program": "report.py",
+            "console": "integratedTerminal",
         }
     ]
 }

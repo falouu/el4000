@@ -13,6 +13,9 @@ from typing import Any, Tuple
 from defs import info, data_hdr, data, setup, SETUP_MAGIC, STARTCODE
 import printers
 
+
+ALL_DATA_RAW_FILENAME = "all-data.csv"
+
 _logger = logging.getLogger(__name__)
 
 def process_setup(filename, printer, setup_args):
@@ -198,7 +201,7 @@ def run_dir_mode(dir: str, printer):
             output_info_file.write("{}: {}\n".format(entry["key"], entry["val"]))
     _logger.info("Info written successfully")
 
-    output_data_raw_filepath = os.path.join(dir, "all-data.csv")
+    output_data_raw_filepath = os.path.join(dir, ALL_DATA_RAW_FILENAME)
     _logger.info("Writing data to: " + output_data_raw_filepath)
     with open(output_data_raw_filepath, 'x') as output_data_raw_file:
         header = ",".join(["date", "voltage", "current", "power_factor", "apparent_power", "effective_power"])

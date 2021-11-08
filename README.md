@@ -21,7 +21,8 @@ It reads all bin files from the directory, process data in chronological order a
       * p90 W
   * create `all-data-hourly.csv` 
   * basic stats file:
-    * max W
+    * max W [DONE]
+    * maybe add timestamp to max/min stats
 
 
 # [Original README] Energy Logger 4000 utility
