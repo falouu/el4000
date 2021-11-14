@@ -2,32 +2,26 @@
 
 from argparse import ArgumentParser
 from datetime import datetime
-from io import TextIOWrapper
 import logging
 import os
 
 from el4000 import ALL_DATA_RAW_FILENAME
+from pkg import all_data_file
+from pkg.statistics import get_max, get_min
+from pkg.SessionRecordWrapper import SessionRecordWrapper
 
 _logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 SIMPLE_STATS_OUTPUT_FILENAME = "simple-stats.yml"
-
-EXPECTED_DATA_FIELDS = ["date", "voltage", "current", "power_factor", "apparent_power", "effective_power"]
-
-expected_header_line = ",".join(EXPECTED_DATA_FIELDS) + "\n"
-i_date = EXPECTED_DATA_FIELDS.index("date")
-i_voltage = EXPECTED_DATA_FIELDS.index("voltage")
-i_current = EXPECTED_DATA_FIELDS.index("current")
-i_power_factor = EXPECTED_DATA_FIELDS.index("power_factor")
-i_apparent_power = EXPECTED_DATA_FIELDS.index("apparent_power")
-i_effective_power = EXPECTED_DATA_FIELDS.index("effective_power")
+SESSIONS_CSV_DATA_OUTPUT_FILENAME = "sessions-data.csv"
+SESSIONS_REPORT_OUTPUT_FILENAME = "sessions-report.yml"
 
 
 def read_data(data_file_path: str):
     with open(data_file_path) as file:
         header = file.readline()
-        if not header == expected_header_line:
+        if not header == all_data_file.expected_header_line:
             raise Exception("Invalid header in data file: " + header)
 
         records = []
@@ -36,45 +30,28 @@ def read_data(data_file_path: str):
             if len(fields) != 6:
                 raise Exception("Invalid number of fields in data: " + len(fields))
 
-            record = [None] * len(EXPECTED_DATA_FIELDS)
+            record = [None] * len(all_data_file.EXPECTED_DATA_FIELDS)
             
-            record[i_date] = datetime.strptime(fields[i_date], '%Y-%m-%d %H:%M')
-            record[i_voltage] = float(fields[i_voltage])
-            record[i_current] = float(fields[i_current])
-            record[i_power_factor] = float(fields[i_power_factor])
-            record[i_apparent_power] = float(fields[i_apparent_power])
-            record[i_effective_power] = float(fields[i_effective_power])
+            record[all_data_file.i_date] = datetime.strptime(fields[all_data_file.i_date], '%Y-%m-%d %H:%M')
+            record[all_data_file.i_voltage] = float(fields[all_data_file.i_voltage])
+            record[all_data_file.i_current] = float(fields[all_data_file.i_current])
+            record[all_data_file.i_power_factor] = float(fields[all_data_file.i_power_factor])
+            record[all_data_file.i_apparent_power] = float(fields[all_data_file.i_apparent_power])
+            record[all_data_file.i_effective_power] = float(fields[all_data_file.i_effective_power])
             
             records.append(record)
 
         return records
-
-def _get_max(records, field_index):
-    if len(records) == 0:
-        return None
-    max_val = records[0][field_index]
-    for record in records:
-        if record[field_index] > max_val:
-            max_val = record[field_index]
-    return max_val
-
-def _get_min(records, field_index):
-    if len(records) == 0:
-        return None
-    max_val = records[0][field_index]
-    for record in records:
-        if record[field_index] < max_val:
-            max_val = record[field_index]
-    return max_val
+   
 
 def get_max_voltage(records):
-    return _get_max(records, i_voltage)
+    return get_max(records, all_data_file.i_voltage)
 
 def get_min_voltage(records):
-    return _get_min(records, i_voltage)
+    return get_min(records, all_data_file.i_voltage)
 
 def get_max_effective_power(records):
-    return _get_max(records, i_effective_power)
+    return get_max(records, all_data_file.i_effective_power)
 
 
 def write_simple_stats_file(all_data, dir):
@@ -83,6 +60,58 @@ def write_simple_stats_file(all_data, dir):
         file.write("min voltage [V]: {}\n".format(get_min_voltage(all_data)))
         file.write("max voltage [V]: {}\n".format(get_max_voltage(all_data)))
     _logger.info("{} file written".format(SIMPLE_STATS_OUTPUT_FILENAME))
+
+
+
+def calculate_sessions_data(all_data: "list[list]", srw: "SessionRecordWrapper"):
+    session_min_power = 10
+
+    sessions_records = []
+
+    current_session_records = []
+    session_start = None
+    session_end = None
+    last_session_type = None
+    
+    def get_session_type(record: list):
+        if record[all_data_file.i_effective_power] >= session_min_power:
+            return "on"
+        else:
+            return "off"
+
+    def end_session(session_type, session_start, session_end, session_records):
+        if session_type == None: return
+        srw.create(session_type, session_start, session_end, current_session_records)
+        sessions_records.append(srw.unwrap())
+
+    for record in all_data:
+        session_type = get_session_type(record)
+
+        if session_type != last_session_type:
+            end_session(last_session_type, session_start, session_end, current_session_records)
+            session_start = record[all_data_file.i_date]
+            current_session_records = []
+
+        last_session_type = session_type
+        session_end = record[all_data_file.i_date]
+        current_session_records.append(record)
+
+    end_session(last_session_type, session_start, session_end, current_session_records)
+    return sessions_records
+
+
+def write_sessions(all_data: "list[list]", dir: str):
+    _logger.info("Calculating sessions data...")
+    srw = SessionRecordWrapper()
+    sessions_data = calculate_sessions_data(all_data, srw)
+    _logger.info("Writing sessions data to {}...".format(SESSIONS_CSV_DATA_OUTPUT_FILENAME))
+    with open(os.path.join(dir, SESSIONS_CSV_DATA_OUTPUT_FILENAME), 'x') as file:
+        file.write(srw.get_csv_header())
+        for session in sessions_data:
+            srw.wrap(session)
+            file.write(srw.get_as_csv_data_line())
+    _logger.info("File {} written".format(SESSIONS_CSV_DATA_OUTPUT_FILENAME))
+
 
 
 parser = ArgumentParser(description='Energy Logger 4000 report from data. \
@@ -98,8 +127,10 @@ if __name__ == '__main__':
         raise Exception("Directory '{}' does not exist")
 
     all_data_filepath = os.path.join(args.dir, ALL_DATA_RAW_FILENAME)
+    _logger.info("Reading file {}...".format(ALL_DATA_RAW_FILENAME))
     all_data = read_data(all_data_filepath)
     _logger.info("Read all data: {} entries".format(len(all_data)))
     write_simple_stats_file(all_data, args.dir)
+    write_sessions(all_data, args.dir)
     
         

@@ -143,20 +143,6 @@ def run_dir_mode(dir: str, printer):
 
 
     last_datetime = [None]
-
-    # bin_files = []
-    # for filename in filenames:
-    #     if filename.lower().endswith(".bin"):
-    #         bin_files.append({
-    #             filename: filename,
-    #             key: 
-    #         })
-    #     else:
-    #         _logger.info("Skipping file: %s", filename) 
-
-
-    # def filename_to_hex(filename):
-        
     bin_filenames = []
     for filename in filenames:
         if filename.lower().endswith(".bin"):

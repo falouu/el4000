@@ -11,8 +11,8 @@ It reads all bin files from the directory, process data in chronological order a
 
 ## TODO:
 * further process `all-data.csv` file. Ideas:
-  * create a filtered file `on-sessions-data.csv` with entries only with > 10W usage
-    * create a sessions report file, where each entry is:
+  * create a filtered file `sessions-data.csv` with entries only with > 10W usage [DONE]
+    * create a sessions report file, where each entry is: 
       * start session date
       * end session date
       * session duration
